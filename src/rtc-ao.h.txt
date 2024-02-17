@@ -1,4 +1,6 @@
 #include <RTClib.h>
 
+extern int nowHour, nowMin, nowSec;
+
 void initRTC();
 void readRTC();

@@ -4,6 +4,8 @@ RTC_DS1307 rtc;
 
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
+int nowHour, nowMin, nowSec;
+
 void initRTC () {
   if (! rtc.begin()) {
     Serial.println("Couldn't find RTC");
@@ -31,9 +33,9 @@ void initRTC () {
 
 void readRTC () {
     DateTime now = rtc.now();
-    int nowHour = now.hour();
-    int nowMin = now.minute();
-    int nowSec = now.second(); 
+    nowHour = now.hour();
+    nowMin = now.minute();
+    nowSec = now.second(); 
 
     Serial.println(nowHour);
     Serial.println(nowMin);
