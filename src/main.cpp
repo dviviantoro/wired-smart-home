@@ -1,5 +1,8 @@
 #include <common.h>
 
+unsigned long previousMillis = 0;
+const long interval = 1000;
+
 struct dataLayout
 {
   char nodes[10];
@@ -9,16 +12,18 @@ struct dataLayout
   int sch1E;
   int sch2S;
   int sch2E;
+  int ena1;
+  int ena2;
 };
 
 dataLayout mapping[6]
 {
-  {"lamp1", 23, 91, 11, 14, 15, 18},
-  {"lamp2", 25, 92, 21, 24, 25, 28},
-  {"lock1", 26, 93, 31, 34, 35, 38},
-  {"lock2", 27, 94, 41, 44, 45, 48},
-  {"soc1", 32, 95, 51, 54, 55, 58},
-  {"soc2", 33, 96, 61, 64, 65, 68},
+  {"lamp1", 23, 91, 11, 14, 15, 18, 19, 20},
+  {"lamp2", 25, 92, 21, 24, 25, 28, 29, 30},
+  {"lock1", 26, 93, 31, 34, 35, 38, 39, 40},
+  {"lock2", 27, 94, 41, 44, 45, 48, 49, 50},
+  {"soc1", 32, 95, 51, 54, 55, 58, 59, 60},
+  {"soc2", 33, 96, 61, 64, 65, 68, 69, 70},
 };
 
 struct dataTime
@@ -52,18 +57,6 @@ void writeEEPROM(int addr, int value)
     EEPROM.commit();
 }
 
-// void mapNode(String node, bool state) {
-//     for(int i=0;i<6;i++)
-//     {
-//         if(node==mapping[i].nodes)
-//         {
-//             writeEEPROM(mapping[i].addrs, state);
-//             digitalWrite(mapping[i].pins, state);
-//             break;
-//         }
-//     }
-// }
-
 void copyArr()
 {
     PROGMEM int fillArr[] = {hh1, mm1, hh2, mm2};
@@ -72,7 +65,6 @@ void copyArr()
 
 void readMapNode(String node, int sch)
 {
-    sendNextion = "";
     for(int i=0;i<6;i++)
     {
         if(node==mapping[i].nodes)
@@ -83,43 +75,61 @@ void readMapNode(String node, int sch)
             }
             else if(sch==1)
             {
+                ena1 = EEPROM.read(mapping[i].ena1) == 1;
                 for(int k=mapping[i].sch1S;k<=mapping[i].sch1E;k++)
                 {
                     int s = k-mapping[i].sch1S;
-                    if(s==1 or s==3)
+                    String r = String(EEPROM.read(k));
+                    if (r.toInt() < 10)
                     {
-                        sendNextion += ":";
+                        r = "0"+r;
                     }
-                    if(s==2)
+
+                    switch (s)
                     {
-                        sendNextion += "-";
+                        case 0:
+                            shh1 = r;
+                            break;
+                        case 1:
+                            smm1 = r;
+                            break;
+                        case 2:
+                            shh2 = r;
+                            break;
+                        case 3:
+                            smm2 = r;
+                            break;
                     }
-                    if(EEPROM.read(k) < 10)
-                    {
-                        sendNextion += "0";    
-                    }
-                    sendNextion += EEPROM.read(k);
                 }
                 break;
             }
             else if(sch==2)
             {
+                ena2 = EEPROM.read(mapping[i].ena2) == 1;
                 for(int k=mapping[i].sch2S;k<=mapping[i].sch2E;k++)
                 {
                     int s = k-mapping[i].sch2S;
-                    if(s==1 or s==3)
+                    String r = String(EEPROM.read(k));
+                    if (r.toInt() < 10)
                     {
-                        sendNextion += ":";
+                        r = "0"+r;
                     }
-                    if(s==2)
+
+                    switch (s)
                     {
-                        sendNextion += "-";
+                        case 0:
+                            shh1 = r;
+                            break;
+                        case 1:
+                            smm1 = r;
+                            break;
+                        case 2:
+                            shh2 = r;
+                            break;
+                        case 3:
+                            smm2 = r;
+                            break;
                     }
-                    if(EEPROM.read(k) < 10)
-                    {
-                        sendNextion += "0";    
-                    }
-                    sendNextion += EEPROM.read(k);
                 }
                 break;
             }
@@ -141,17 +151,33 @@ void mapNode(String node, int sch, bool state)
             }
             else if(sch==1)
             {
-                for(int k=mapping[i].sch1S;k<=mapping[i].sch1E;k++)
+                if(flagSch1==true)
                 {
-                    writeEEPROM(k, arr[k-mapping[i].sch1S]);
+                    writeEEPROM(mapping[i].ena1, 1);
+                    for(int k=mapping[i].sch1S;k<=mapping[i].sch1E;k++)
+                    {
+                        writeEEPROM(k, arr[k-mapping[i].sch1S]);
+                    }
+                }
+                else
+                {
+                    writeEEPROM(mapping[i].ena1, 0);
                 }
                 break;
             }
             else if(sch==2) 
             {
-                for(int k=mapping[i].sch2S;k<=mapping[i].sch2E;k++)
+                if(flagSch2==true)
                 {
-                    writeEEPROM(k, arr[k-mapping[i].sch2S]);
+                    writeEEPROM(mapping[i].ena2, 1);
+                    for(int k=mapping[i].sch2S;k<=mapping[i].sch2E;k++)
+                    {
+                        writeEEPROM(k, arr[k-mapping[i].sch2S]);
+                    }
+                }
+                else
+                {
+                    writeEEPROM(mapping[i].ena2, 0);
                 }
                 break;
             }
@@ -165,6 +191,55 @@ void printnextion() {
   Serial2.write(0xff);
 }
 
+void checkSchedule(String node)
+{
+    printnextion();
+
+    readMapNode(node,1);
+    ena1 == true ? Serial2.print("pSwP1.pic=11") : Serial2.print("pSwP1.pic=10"); 
+    printnextion();
+    ena1 == true ? Serial2.print("flag1.txt=\"1\"") : Serial2.print("flag1.txt=\"0\"");
+    printnextion();
+    Serial2.print("hStart1.val="+String(shh1.toInt()));
+    printnextion();
+    Serial2.print("mStart1.val="+String(smm1.toInt()));
+    printnextion();
+    Serial2.print("hEnd1.val="+String(shh2.toInt()));
+    printnextion();
+    Serial2.print("mEnd1.val="+String(smm2.toInt()));
+    printnextion();
+    Serial2.print("tH1.txt=\""+shh1+"\"");
+    printnextion();
+    Serial2.print("tM1.txt=\""+smm1+"\"");
+    printnextion();
+    Serial2.print("tH2.txt=\""+shh2+"\"");
+    printnextion();
+    Serial2.print("tM2.txt=\""+smm2+"\"");
+    printnextion();
+
+
+    readMapNode(node,2);
+    ena2 == true ? Serial2.print("pSwP2.pic=11") : Serial2.print("pSwP2.pic=10");
+    printnextion();
+    ena2 == true ? Serial2.print("flag2.txt=\"1\"") : Serial2.print("flag2.txt=\"0\"");
+    printnextion();
+    Serial2.print("hStart2.val="+String(shh1.toInt()));
+    printnextion();
+    Serial2.print("mStart2.val="+String(smm1.toInt()));
+    printnextion();
+    Serial2.print("hEnd2.val="+String(shh2.toInt()));
+    printnextion();
+    Serial2.print("mEnd2.val="+String(smm2.toInt()));
+    printnextion();
+    Serial2.print("tH3.txt=\""+shh1+"\"");
+    printnextion();
+    Serial2.print("tM3.txt=\""+smm1+"\"");
+    printnextion();
+    Serial2.print("tH4.txt=\""+shh2+"\"");
+    printnextion();
+    Serial2.print("tM4.txt=\""+smm2+"\"");
+    printnextion();
+}
 
 void checkAll()
 {
@@ -195,65 +270,96 @@ void checkAll()
     printnextion();
 
     readMapNode("lamp1",1);
-    Serial2.print("tSch1Lamp1.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena1 == true ? Serial2.print("tSch1Lamp1.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch1Lamp1.txt=\"no schedule\"");
     printnextion();
     
     readMapNode("lamp1",2);
-    Serial2.print("tSch2Lamp1.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena2 == true ? Serial2.print("tSch2Lamp1.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch2Lamp1.txt=\"no schedule\"");
     printnextion();
 
     readMapNode("lamp2",1);
-    Serial2.print("tSch1Lamp2.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena1 == true ? Serial2.print("tSch1Lamp2.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch1Lamp2.txt=\"no schedule\"");
     printnextion();
 
     readMapNode("lamp2",2);
-    Serial2.print("tSch2Lamp2.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena2 == true ? Serial2.print("tSch2Lamp2.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch2Lamp2.txt=\"no schedule\"");
     printnextion();
 
     readMapNode("lock1",1);
-    Serial2.print("tSch1Lock1.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena1 == true ? Serial2.print("tSch1Lock1.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch1Lock1.txt=\"no schedule\"");
     printnextion();
     
     readMapNode("lock1",2);
-    Serial2.print("tSch2Lock1.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena2 == true ? Serial2.print("tSch2Lock1.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch2Lock1.txt=\"no schedule\"");
     printnextion();
 
     readMapNode("lock2",1);
-    Serial2.print("tSch1Lock2.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena1 == true ? Serial2.print("tSch1Lock2.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch1Lock2.txt=\"no schedule\"");
     printnextion();
 
     readMapNode("lock2",2);
-    Serial2.print("tSch2Lock2.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena2 == true ? Serial2.print("tSch2Lock2.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch2Lock2.txt=\"no schedule\"");
     printnextion();
 
     readMapNode("soc1",1);
-    Serial2.print("tSch1Soc1.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena1 == true ? Serial2.print("tSch1Soc1.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch1Soc1.txt=\"no schedule\"");
     printnextion();
     
     readMapNode("soc1",2);
-    Serial2.print("tSch2Soc1.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena2 == true ? Serial2.print("tSch2Soc1.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch2Soc1.txt=\"no schedule\"");
     printnextion();
 
     readMapNode("soc2",1);
-    Serial2.print("tSch1Soc2.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena1 == true ? Serial2.print("tSch1Soc2.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch1Soc2.txt=\"no schedule\"");
     printnextion();
 
     readMapNode("soc2",2);
-    Serial2.print("tSch2Soc2.txt=\"");
-    Serial2.print(sendNextion + "\"");
+    ena2 == true ? Serial2.print("tSch2Soc2.txt=\""+shh1+":"+smm1+" - "+shh2+":"+smm2+ "\"") : Serial2.print("tSch2Soc2.txt=\"no schedule\"");
     printnextion();
+}
 
+void doItOn()
+{
+    mapNode(node,0,true);
+    Serial.print(node);
+    Serial.println(" doit ON");
+}
+
+void doItOff()
+{
+    mapNode(node,0,false);
+    Serial.print(node);
+    Serial.println(" doit OFF");
+}
+
+void setSchedule()
+{
+    for(int i=0; i<6;i++)
+    {
+        if(EEPROM.read(mapping[i].ena1)==1)
+        {
+            node = mapping[i].nodes;
+            readMapNode(mapping[i].nodes,1);
+            Alarm.alarmRepeat(shh1.toInt(),smm1.toInt(),0,doItOn);
+            Alarm.alarmRepeat(shh2.toInt(),smm2.toInt(),0,doItOff);
+            Serial.print(node);
+            Serial.print(" sch1 ");
+            Serial.println(shh1+":"+smm1+"-"+shh2+":"+smm2);
+        }
+        if(EEPROM.read(mapping[i].ena2)==1)
+        {
+            node = mapping[i].nodes;
+            readMapNode(mapping[i].nodes,2);
+            Alarm.alarmRepeat(shh1.toInt(),smm1.toInt(),0,doItOn);
+            Alarm.alarmRepeat(shh2.toInt(),smm2.toInt(),0,doItOff);
+            Serial.print(node);
+            Serial.print(" sch2 ");
+            Serial.println(shh1+":"+smm1+"-"+shh2+":"+smm2);
+        }
+        // Serial.println("sini-sini");
+        // Serial.print(EEPROM.read(mapping[i].ena1));
+        // Serial.println(EEPROM.read(mapping[i].ena2));
+    }
 }
 
 void setup()
@@ -273,13 +379,21 @@ void setup()
     // {
     //     Serial.println(EEPROM.read(j));
     // }
-    checkAll();
+    // checkAll();
+    setSchedule();
 }
 
 void loop()
 {
 //   listenVoice();
-    while(Serial2.available() > 0 ) {
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) {
+        checkAll();
+        routineTime();
+        previousMillis = currentMillis;
+    }
+
+    if(Serial2.available() > 0 ) {
         msg = Serial2.readString();
         Serial.println(msg);
         header = getValue(msg, ';', 1);
@@ -296,6 +410,7 @@ void loop()
             node = getValue(msg, ';', 2);
             if (getValue(msg, ';', 3) == "1")
             {
+                flagSch1 = true;
                 sch = 1;
                 hh1 = getValue(msg, ';', 4).toInt();
                 mm1 = getValue(msg, ';', 5).toInt();
@@ -305,8 +420,16 @@ void loop()
                 copyArr();
                 mapNode(node, sch, flagSch1);
             }
+            else 
+            {
+                flagSch1 = false;
+                sch = 1;
+                mapNode(node, sch, flagSch1);
+            }
+
             if (getValue(msg, ';', 8) == "1")
             {
+                flagSch2 = true;
                 sch = 2;
                 hh1 = getValue(msg, ';', 9).toInt();
                 mm1 = getValue(msg, ';', 10).toInt();
@@ -316,6 +439,13 @@ void loop()
                 copyArr();
                 mapNode(node, sch, flagSch2);
             }
+            else 
+            {
+                flagSch2 = false;
+                sch = 2;
+                mapNode(node, sch, flagSch1);
+            }
+            ESP.restart(); 
         }
         else if (header == "page")
         {
@@ -323,6 +453,12 @@ void loop()
             if (page == "control")
             {
                 checkAll();
+            }
+            else if (page == "schedule")
+            {
+                node = getValue(msg, ';', 3);
+                // checkAll();
+                checkSchedule(node);
             }
         }
     }
