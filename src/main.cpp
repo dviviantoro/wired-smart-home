@@ -7,7 +7,7 @@ struct dataLayout
 {
   char nodes[10];
   int pins;
-  int addrs;
+  int flags;
   int sch1S;
   int sch1E;
   int sch2S;
@@ -18,7 +18,7 @@ struct dataLayout
 
 dataLayout mapping[6]
 {
-  {"lamp1", 23, 91, 11, 14, 15, 18, 19, 20},
+  {"lamp1", 2, 91, 11, 14, 15, 18, 19, 20}, //pin=23
   {"lamp2", 25, 92, 21, 24, 25, 28, 29, 30},
   {"lock1", 26, 93, 31, 34, 35, 38, 39, 40},
   {"lock2", 27, 94, 41, 44, 45, 48, 49, 50},
@@ -71,7 +71,7 @@ void readMapNode(String node, int sch)
         {
             if(sch==0)
             {
-                flagDir = EEPROM.read(mapping[i].addrs) == 1;
+                flagDir = EEPROM.read(mapping[i].flags) == 1;
             }
             else if(sch==1)
             {
@@ -145,7 +145,7 @@ void mapNode(String node, int sch, bool state)
         {
             if (sch==0)
             {
-                writeEEPROM(mapping[i].addrs, state);
+                writeEEPROM(mapping[i].flags, state);
                 digitalWrite(mapping[i].pins, state);
                 break;
             }
@@ -181,6 +181,10 @@ void mapNode(String node, int sch, bool state)
                 }
                 break;
             }
+        }
+        if(sch==3)
+        {
+            digitalWrite(mapping[i].pins, mapping[i].flags);
         }
     }
 }
@@ -374,13 +378,14 @@ void setup()
     {
         pinMode(mapping[i].pins, OUTPUT);
     }
-//   initVoice();
+    initVoice();
     // for(int j=21;j<=28;j++)
     // {
     //     Serial.println(EEPROM.read(j));
     // }
     // checkAll();
     setSchedule();
+    mapNode("",3,false);
 }
 
 void loop()
@@ -390,6 +395,22 @@ void loop()
     if (currentMillis - previousMillis >= interval) {
         checkAll();
         routineTime();
+
+        listenVoice();
+        if(CMDID != 0)
+        {
+            sch = 0;
+            switch (CMDID)
+            {
+                case 103:
+                    mapNode("lamp1", sch, true);
+                    break;
+                case 104:
+                    mapNode("lamp1", sch, false);
+                    break;
+            } 
+        }
+
         previousMillis = currentMillis;
     }
 
@@ -461,10 +482,5 @@ void loop()
                 checkSchedule(node);
             }
         }
-    }
-
-    // readRTC();
-    // routineTime();
-
-   
+    }  
 }
