@@ -22,7 +22,7 @@ void initVoice()
     wakeTime = DF2301Q.getWakeTime();
     Serial.print("wakeTime = ");
     Serial.println(wakeTime);
-    DF2301Q.playByCMDID(1);   // Wake-up command
+    DF2301Q.playByCMDID(1);  // Wake-up command
     DF2301Q.playByCMDID(23); // Common word ID
 }
 

@@ -9,12 +9,12 @@
 #define RXD2 16
 #define TXD2 17
 
-String msg,header,node,page,sendNextion;
-String shh1,smm1,shh2,smm2,shh3,smm3,shh4,smm4;
+String msg, header, node, page, sendNextion;
+String shh1, smm1, shh2, smm2, shh3, smm3, shh4, smm4;
 
-bool flagDir,flagSch1,flagSch2,ena1,ena2;
-int hh1,mm1,hh2,mm2,hh3,mm3,hh4,mm4,sch;
-int arr[4] = {0,0,0,0};
+bool flagDir, flagSch1, flagSch2, ena1, ena2;
+int hh1, mm1, hh2, mm2, hh3, mm3, hh4, mm4, sch;
+int arr[4] = {0, 0, 0, 0};
 
 unsigned long previousMillis = 0;
 const long interval = 1000;
@@ -31,26 +31,23 @@ struct dataLayout
   int ena1;
   int ena2;
 };
-dataLayout mapping[6]
-{
-  {"lamp1", 32, 91, 11, 14, 15, 18, 19, 20}, //pin=23
-  {"lamp2", 25, 92, 21, 24, 25, 28, 29, 30},
-  {"lock1", 26, 93, 31, 34, 35, 38, 39, 40},
-  {"lock2", 27, 94, 41, 44, 45, 48, 49, 50},
-  {"soc1", 2, 95, 51, 54, 55, 58, 59, 60},
-  {"soc2", 33, 96, 61, 64, 65, 68, 69, 70},
+dataLayout mapping[6]{
+    {"lamp1", 32, 91, 11, 14, 15, 18, 19, 20}, // pin=23
+    {"lamp2", 25, 92, 21, 24, 25, 28, 29, 30},
+    {"lock1", 26, 93, 31, 34, 35, 38, 39, 40},
+    {"lock2", 27, 94, 41, 44, 45, 48, 49, 50},
+    {"soc1", 2, 95, 51, 54, 55, 58, 59, 60},
+    {"soc2", 33, 96, 61, 64, 65, 68, 69, 70},
 };
 
 struct dataTime
 {
-    int hh1;
-    int mm1;
-    int hh2;
-    int mm2;
+  int hh1;
+  int mm1;
+  int hh2;
+  int mm2;
 };
 dataTime timeValue;
-
-
 
 #include <BLEDevice.h>
 #include <BLEServer.h>
