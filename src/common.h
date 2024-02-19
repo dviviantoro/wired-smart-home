@@ -6,21 +6,74 @@
 #include <voice-ao.h>
 
 #define EEPROM_SIZE 100
-// #include <rtc-ao.h>
-// #include <nextion-ao.h>
-
-String msg,header,node,page,sendNextion;
-bool flagDir,flagSch1,flagSch2,ena1,ena2;
-String shh1,smm1,shh2,smm2,shh3,smm3,shh4,smm4;
-int hh1,mm1,hh2,mm2,hh3,mm3,hh4,mm4,sch;
-int arr[4] = {0,0,0,0};
-
-
 #define RXD2 16
 #define TXD2 17
 
-String headerDirect = "dir";
-String headerSchedule = "sch";
+String msg,header,node,page,sendNextion;
+String shh1,smm1,shh2,smm2,shh3,smm3,shh4,smm4;
+
+bool flagDir,flagSch1,flagSch2,ena1,ena2;
+int hh1,mm1,hh2,mm2,hh3,mm3,hh4,mm4,sch;
+int arr[4] = {0,0,0,0};
+
+unsigned long previousMillis = 0;
+const long interval = 1000;
+
+struct dataLayout
+{
+  char nodes[10];
+  int pins;
+  int flags;
+  int sch1S;
+  int sch1E;
+  int sch2S;
+  int sch2E;
+  int ena1;
+  int ena2;
+};
+dataLayout mapping[6]
+{
+  {"lamp1", 32, 91, 11, 14, 15, 18, 19, 20}, //pin=23
+  {"lamp2", 25, 92, 21, 24, 25, 28, 29, 30},
+  {"lock1", 26, 93, 31, 34, 35, 38, 39, 40},
+  {"lock2", 27, 94, 41, 44, 45, 48, 49, 50},
+  {"soc1", 2, 95, 51, 54, 55, 58, 59, 60},
+  {"soc2", 33, 96, 61, 64, 65, 68, 69, 70},
+};
+
+struct dataTime
+{
+    int hh1;
+    int mm1;
+    int hh2;
+    int mm2;
+};
+dataTime timeValue;
+
+
+
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+#define DEVICE_NAME "ESP32 Smart Home"
+// https://www.uuidgenerator.net/
+#define SERVICE_UUID "c166797b-4a24-439b-972a-167692d0f2fa"
+#define COMMAND_CHARACTERISTIC_UUID "fa0673e1-4a0f-45ce-b141-fc7d6fd5ede5"
+#define STATUS_CHARACTERISTIC_UUID "0cd4105f-0154-40ef-9a8e-3d4d5f565972"
+#define PASSKEY 123456
+
+BLEServer *pServer = NULL;
+BLECharacteristic *commandCharacteristics = NULL;
+bool deviceConnected = false;
+bool oldDeviceConnected = false;
+uint32_t value = 0;
+
+BLECharacteristic statusCharacteristics(STATUS_CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_NOTIFY);
+BLEDescriptor statusDescriptor(BLEUUID((uint16_t)0x2902));
+
+boolean flagSystem = false;
 
 /*
 state:

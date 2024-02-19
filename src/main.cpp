@@ -1,40 +1,5 @@
 #include <common.h>
 
-unsigned long previousMillis = 0;
-const long interval = 1000;
-
-struct dataLayout
-{
-  char nodes[10];
-  int pins;
-  int flags;
-  int sch1S;
-  int sch1E;
-  int sch2S;
-  int sch2E;
-  int ena1;
-  int ena2;
-};
-
-dataLayout mapping[6]
-{
-  {"lamp1", 2, 91, 11, 14, 15, 18, 19, 20}, //pin=23
-  {"lamp2", 25, 92, 21, 24, 25, 28, 29, 30},
-  {"lock1", 26, 93, 31, 34, 35, 38, 39, 40},
-  {"lock2", 27, 94, 41, 44, 45, 48, 49, 50},
-  {"soc1", 32, 95, 51, 54, 55, 58, 59, 60},
-  {"soc2", 33, 96, 61, 64, 65, 68, 69, 70},
-};
-
-struct dataTime
-{
-    int hh1;
-    int mm1;
-    int hh2;
-    int mm2;
-};
-dataTime timeValue;
-
 String getValue(String data, char separator, int index) {
   int found = 0;
   int strIndex[] = {0, -1};
@@ -184,7 +149,10 @@ void mapNode(String node, int sch, bool state)
         }
         if(sch==3)
         {
-            digitalWrite(mapping[i].pins, mapping[i].flags);
+            digitalWrite(mapping[i].pins, EEPROM.read(mapping[i].flags));
+            Serial.print(mapping[i].pins);
+            Serial.print(",");
+            Serial.println(mapping[i].flags);
         }
     }
 }
@@ -360,10 +328,84 @@ void setSchedule()
             Serial.print(" sch2 ");
             Serial.println(shh1+":"+smm1+"-"+shh2+":"+smm2);
         }
-        // Serial.println("sini-sini");
-        // Serial.print(EEPROM.read(mapping[i].ena1));
-        // Serial.println(EEPROM.read(mapping[i].ena2));
     }
+}
+
+class MyServerCallbacks : public BLEServerCallbacks
+{
+    void onConnect(BLEServer *pServer)
+    {
+        deviceConnected = true;
+    };
+
+    void onDisconnect(BLEServer *pServer)
+    {
+        deviceConnected = false;
+    }
+};
+
+class CallbackMsg : public BLECharacteristicCallbacks
+{
+    void onWrite(BLECharacteristic *commandCharacteristics)
+    {
+        uint8_t *received_data = commandCharacteristics->getData();
+        Serial.println(*received_data, HEX);
+
+        switch (*received_data)
+        {
+        case 0:
+            flagSystem = false;
+            break;
+        case 1:
+            flagSystem = true;
+            break;
+        case 2:
+            sch = 0;
+            if (flagSystem == true)
+            {
+                mapNode("lamp1", sch, true);
+            }
+            break;
+        case 3:
+            sch = 0;
+            if (flagSystem == true)
+            {
+                mapNode("lamp1", sch, false);
+            }
+            break;
+        }
+    }
+};
+
+
+void initBLE()
+{
+    BLEDevice::init(DEVICE_NAME);
+
+    pServer = BLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
+
+    BLEService *pService = pServer->createService(SERVICE_UUID);
+
+    commandCharacteristics = pService->createCharacteristic(
+        COMMAND_CHARACTERISTIC_UUID,
+        BLECharacteristic::PROPERTY_READ |
+            BLECharacteristic::PROPERTY_WRITE);
+    commandCharacteristics->setCallbacks(new CallbackMsg());
+    commandCharacteristics->addDescriptor(new BLE2902());
+
+    pService->addCharacteristic(&statusCharacteristics);
+    statusDescriptor.setValue("Gate status");
+    statusCharacteristics.addDescriptor(&statusDescriptor);
+
+    pService->start();
+
+    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+    pAdvertising->addServiceUUID(SERVICE_UUID);
+    pAdvertising->setScanResponse(false);
+    pAdvertising->setMinPreferred(0x0); // set value to 0x00 to not advertise this parameter
+    BLEDevice::startAdvertising();
+    Serial.println("Waiting a client connection to notify...");
 }
 
 void setup()
@@ -372,25 +414,21 @@ void setup()
     Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
     Serial2.setTimeout(300); 
     EEPROM.begin(EEPROM_SIZE);
-    initRTC();
-
+    
     for(int i=0;i<6;i++)
     {
         pinMode(mapping[i].pins, OUTPUT);
     }
+    
+    initRTC();
+    initBLE();
     initVoice();
-    // for(int j=21;j<=28;j++)
-    // {
-    //     Serial.println(EEPROM.read(j));
-    // }
-    // checkAll();
     setSchedule();
     mapNode("",3,false);
 }
 
 void loop()
 {
-//   listenVoice();
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
         checkAll();
@@ -410,9 +448,24 @@ void loop()
                     break;
             } 
         }
-
         previousMillis = currentMillis;
     }
+
+    if (deviceConnected){}
+    // disconnecting
+    if (!deviceConnected && oldDeviceConnected)
+    {
+        delay(500);
+        pServer->startAdvertising();
+        Serial.println("start advertising");
+        oldDeviceConnected = deviceConnected;
+    }
+    // connecting
+    if (deviceConnected && !oldDeviceConnected)
+    {
+        oldDeviceConnected = deviceConnected;
+    }
+
 
     if(Serial2.available() > 0 ) {
         msg = Serial2.readString();
@@ -478,7 +531,6 @@ void loop()
             else if (page == "schedule")
             {
                 node = getValue(msg, ';', 3);
-                // checkAll();
                 checkSchedule(node);
             }
         }
