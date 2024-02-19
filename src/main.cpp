@@ -153,9 +153,9 @@ void mapNode(String node, int sch, bool state)
         if (sch == 3)
         {
             digitalWrite(mapping[i].pins, EEPROM.read(mapping[i].flags));
-            Serial.print(mapping[i].pins);
-            Serial.print(",");
-            Serial.println(mapping[i].flags);
+            // Serial.print(mapping[i].pins);
+            // Serial.print(",");
+            // Serial.println(mapping[i].flags);
         }
     }
 }
@@ -351,31 +351,55 @@ class CallbackMsg : public BLECharacteristicCallbacks
 {
     void onWrite(BLECharacteristic *commandCharacteristics)
     {
-        uint8_t *received_data = commandCharacteristics->getData();
-        Serial.println(*received_data, HEX);
+        // uint8_t *received_data = commandCharacteristics->getData();
+        // Serial.println(*received_data, HEX);
 
-        switch (*received_data)
+        // switch (*received_data)
+        // {
+        // case 0:
+        //     flagSystem = false;
+        //     break;
+        // case 1:
+        //     flagSystem = true;
+        //     break;
+        // case 2:
+        //     sch = 0;
+        //     if (flagSystem == true)
+        //     {
+        //         mapNode("lamp1", sch, true);
+        //     }
+        //     break;
+        // case 3:
+        //     sch = 0;
+        //     if (flagSystem == true)
+        //     {
+        //         mapNode("lamp1", sch, false);
+        //     }
+        //     break;
+        // }
+
+        std::string value = commandCharacteristics->getValue();
+
+        if (value.length() > 0)
         {
-        case 0:
-            flagSystem = false;
-            break;
-        case 1:
-            flagSystem = true;
-            break;
-        case 2:
-            sch = 0;
-            if (flagSystem == true)
+            String bleMsg;
+            for (int i = 0; i < value.length(); i++)
             {
-                mapNode("lamp1", sch, true);
+                bleMsg += value[i];
             }
-            break;
-        case 3:
-            sch = 0;
-            if (flagSystem == true)
-            {
-                mapNode("lamp1", sch, false);
-            }
-            break;
+            Serial.print("message = ");
+            Serial.println(bleMsg);
+
+            String headerMsg = getValue(bleMsg, ';', 0);
+            // String stateMsg = getValue(bleMsg, ';', 1);
+            bool stateMsg = getValue(bleMsg, ';', 1) == "1";
+            
+            Serial.print(headerMsg);
+            Serial.print(" - ");
+            Serial.println(stateMsg);
+
+            headerMsg == "sys" && stateMsg == true ? flagSystem = true : flagSystem = false;
+            flagSystem == true ? mapNode(headerMsg, 0, stateMsg) : printnextion();
         }
     }
 };
