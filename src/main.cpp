@@ -351,33 +351,6 @@ class CallbackMsg : public BLECharacteristicCallbacks
 {
     void onWrite(BLECharacteristic *commandCharacteristics)
     {
-        // uint8_t *received_data = commandCharacteristics->getData();
-        // Serial.println(*received_data, HEX);
-
-        // switch (*received_data)
-        // {
-        // case 0:
-        //     flagSystem = false;
-        //     break;
-        // case 1:
-        //     flagSystem = true;
-        //     break;
-        // case 2:
-        //     sch = 0;
-        //     if (flagSystem == true)
-        //     {
-        //         mapNode("lamp1", sch, true);
-        //     }
-        //     break;
-        // case 3:
-        //     sch = 0;
-        //     if (flagSystem == true)
-        //     {
-        //         mapNode("lamp1", sch, false);
-        //     }
-        //     break;
-        // }
-
         std::string value = commandCharacteristics->getValue();
 
         if (value.length() > 0)
@@ -391,15 +364,13 @@ class CallbackMsg : public BLECharacteristicCallbacks
             Serial.println(bleMsg);
 
             String headerMsg = getValue(bleMsg, ';', 0);
-            // String stateMsg = getValue(bleMsg, ';', 1);
             bool stateMsg = getValue(bleMsg, ';', 1) == "1";
             
-            Serial.print(headerMsg);
-            Serial.print(" - ");
-            Serial.println(stateMsg);
-
-            headerMsg == "sys" && stateMsg == true ? flagSystem = true : flagSystem = false;
-            flagSystem == true ? mapNode(headerMsg, 0, stateMsg) : printnextion();
+            if (headerMsg == "sys")
+            {
+                stateMsg == true ? flagSystem = true : flagSystem = false;
+            }
+            headerMsg != "sys" && flagSystem == true ? mapNode(headerMsg, 0, stateMsg) : printnextion();
         }
     }
 };
@@ -488,6 +459,7 @@ void loop()
         pServer->startAdvertising();
         Serial.println("start advertising");
         oldDeviceConnected = deviceConnected;
+        flagSystem = false;
     }
     // connecting
     if (deviceConnected && !oldDeviceConnected)
