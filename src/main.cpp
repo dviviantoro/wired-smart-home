@@ -114,7 +114,7 @@ void mapNode(String node, int sch, bool state)
             if (sch == 0)
             {
                 writeEEPROM(mapping[i].flags, state);
-                digitalWrite(mapping[i].pins, state);
+                digitalWrite(mapping[i].outputPins, state);
                 break;
             }
             else if (sch == 1)
@@ -152,8 +152,8 @@ void mapNode(String node, int sch, bool state)
         }
         if (sch == 3)
         {
-            digitalWrite(mapping[i].pins, EEPROM.read(mapping[i].flags));
-            // Serial.print(mapping[i].pins);
+            digitalWrite(mapping[i].outputPins, EEPROM.read(mapping[i].flags));
+            // Serial.print(mapping[i].outputPins);
             // Serial.print(",");
             // Serial.println(mapping[i].flags);
         }
@@ -165,6 +165,43 @@ void printnextion()
     Serial2.write(0xff);
     Serial2.write(0xff);
     Serial2.write(0xff);
+}
+
+void readLoad()
+{
+    if (!digitalRead(19) != EEPROM.read(91))
+    {
+        unsigned long nowMil = millis();
+        if (flagWait == false)
+        {
+            flagWait = true;
+            lastMilCheck = nowMil;
+        }
+
+        if (nowMil - lastMilCheck >= intervalCheck)
+        {
+            // mapNode("lamp1", 0, digitalRead(19));
+            writeEEPROM(91, !digitalRead(19));
+            lastMilCheck = nowMil;
+            flagWait = false;
+        }
+        // mapNode("lamp1", 0, digitalRead(19));
+        // writeEEPROM(91, digitalRead(19));
+    }
+
+    // for (int i = 0; i < 6; i++)
+    // {
+    //     if (digitalRead(mapping[i].inputPins) != EEPROM.read(mapping[i].flags))
+    //     {
+    //         unsigned long nowMil = millis();
+    //         if (nowMil - lastMilCheck >= intervalCheck)
+    //         {
+    //             mapNode(mapping[i].nodes, 0, digitalRead(mapping[i].inputPins));
+    //             lastMilCheck = nowMil;
+    //         }
+    //     }
+    //     digitalRead(mapping[i].inputPins) == EEPROM.read(mapping[i].flags) ? printnextion() : mapNode(mapping[i].nodes, 0, digitalRead(mapping[i].inputPins));
+    // }
 }
 
 void checkSchedule(String node)
@@ -365,7 +402,7 @@ class CallbackMsg : public BLECharacteristicCallbacks
 
             String headerMsg = getValue(bleMsg, ';', 0);
             bool stateMsg = getValue(bleMsg, ';', 1) == "1";
-            
+
             if (headerMsg == "sys")
             {
                 stateMsg == true ? flagSystem = true : flagSystem = false;
@@ -414,7 +451,8 @@ void setup()
 
     for (int i = 0; i < 6; i++)
     {
-        pinMode(mapping[i].pins, OUTPUT);
+        pinMode(mapping[i].outputPins, OUTPUT);
+        pinMode(mapping[i].inputPins, INPUT);
     }
 
     initRTC();
@@ -426,6 +464,7 @@ void setup()
 
 void loop()
 {
+    readLoad();
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval)
     {
@@ -438,10 +477,16 @@ void loop()
             sch = 0;
             switch (CMDID)
             {
-            case 103:
+            // case 103:
+            //     mapNode("lamp1", sch, true);
+            //     break;
+            // case 104:
+            //     mapNode("lamp1", sch, false);
+            //     break;
+            case 5:
                 mapNode("lamp1", sch, true);
                 break;
-            case 104:
+            case 6:
                 mapNode("lamp1", sch, false);
                 break;
             }

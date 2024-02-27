@@ -12,17 +12,21 @@
 String msg, header, node, page, sendNextion;
 String shh1, smm1, shh2, smm2, shh3, smm3, shh4, smm4;
 
-bool flagDir, flagSch1, flagSch2, ena1, ena2;
+bool flagDir, flagSch1, flagSch2, ena1, ena2, flagLamp1;
 int hh1, mm1, hh2, mm2, hh3, mm3, hh4, mm4, sch;
 int arr[4] = {0, 0, 0, 0};
+bool flagWait = false;
 
 unsigned long previousMillis = 0;
 const long interval = 1000;
 
+unsigned long lastMilCheck = 0;
+const long intervalCheck = 2000;
+
 struct dataLayout
 {
   char nodes[10];
-  int pins;
+  int outputPins;
   int flags;
   int sch1S;
   int sch1E;
@@ -30,14 +34,15 @@ struct dataLayout
   int sch2E;
   int ena1;
   int ena2;
+  int inputPins;
 };
 dataLayout mapping[6]{
-    {"lamp1", 32, 91, 11, 14, 15, 18, 19, 20}, // pin=23
-    {"lamp2", 25, 92, 21, 24, 25, 28, 29, 30},
-    {"lock1", 26, 93, 31, 34, 35, 38, 39, 40},
-    {"lock2", 27, 94, 41, 44, 45, 48, 49, 50},
-    {"soc1", 2, 95, 51, 54, 55, 58, 59, 60},
-    {"soc2", 33, 96, 61, 64, 65, 68, 69, 70},
+    {"lamp1", 32, 91, 11, 14, 15, 18, 19, 20, 19}, // pin=23
+    {"lamp2", 25, 92, 21, 24, 25, 28, 29, 30, 18},
+    {"lock1", 26, 93, 31, 34, 35, 38, 39, 40, 36},
+    {"lock2", 27, 94, 41, 44, 45, 48, 49, 50, 39},
+    {"soc1", 2, 95, 51, 54, 55, 58, 59, 60, 14},
+    {"soc2", 33, 96, 61, 64, 65, 68, 69, 70, 15},
 };
 
 struct dataTime
